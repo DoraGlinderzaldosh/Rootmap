@@ -2,3 +2,4 @@
 .cache
 venv
 .embed_cache
+.summary_cache

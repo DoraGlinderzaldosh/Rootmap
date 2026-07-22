@@ -1,0 +1,1 @@
+{"problem": "Improving the capacity of recurrent neural networks", "method": "Introducing a new type of cell called the Long Short-Term Memory (LSTM) cell", "key_result": "LSTM cells can learn long-term dependencies in sequential data", "one_liner": "LSTM cells enable recurrent neural networks to learn long-term dependencies in sequential data."}

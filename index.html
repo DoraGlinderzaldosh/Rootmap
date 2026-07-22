@@ -1,398 +1,332 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-    <meta charset="UTF-8" />
-    <title>Rootmap — Citation Graph Explorer</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.28.1/cytoscape.min.js"></script>
-    <style>
-        :root {
-            --bg: #12110f;
-            --panel: #1a1815;
-            --ink: #ece6d9;
-            --ink-dim: #9a9384;
-            --rule: #3a352c;
-            --accent: #c98a3e;
-            --accent-dim: #7a5a2e;
-            --depth0: #e8c17a;
-            --depth1: #c98a3e;
-            --depth2: #8a6a4a;
-            --depth3: #5a5044;
-            --mono: 'JetBrains Mono', 'SFMono-Regular', Consolas, monospace;
-            --serif: 'Georgia', 'Iowan Old Style', serif;
-        }
+<meta charset="UTF-8" />
+<title>Rootmap — Citation Graph Explorer</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.28.1/cytoscape.min.js"></script>
+<style>
+  :root {
+    --bg: #12110f;
+    --panel: #1a1815;
+    --ink: #ece6d9;
+    --ink-dim: #9a9384;
+    --rule: #3a352c;
+    --accent: #c98a3e;
+    --accent-dim: #7a5a2e;
+    --depth0: #e8c17a;
+    --depth1: #c98a3e;
+    --depth2: #8a6a4a;
+    --depth3: #5a5044;
+    --mono: 'JetBrains Mono', 'SFMono-Regular', Consolas, monospace;
+    --serif: 'Georgia', 'Iowan Old Style', serif;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--serif); height: 100vh; overflow: hidden; }
+  #app { display: grid; grid-template-columns: 1fr 380px; height: 100vh; }
+  #graph-pane { position: relative; border-right: 1px solid var(--rule); }
+  #cy { width: 100%; height: 100%; background: radial-gradient(circle at 20% 20%, #1c1a16 0%, var(--bg) 60%); }
 
-        * {
-            box-sizing: border-box;
-        }
+  #search-bar { position: absolute; top: 20px; left: 20px; right: 20px; display: flex; gap: 10px; z-index: 10; }
+  #search-bar input {
+    flex: 1; background: var(--panel); border: 1px solid var(--rule); color: var(--ink);
+    padding: 12px 16px; font-family: var(--serif); font-size: 15px; border-radius: 2px;
+  }
+  #search-bar input::placeholder { color: var(--ink-dim); }
+  #search-bar input:focus { outline: none; border-color: var(--accent); }
+  #search-bar button {
+    background: var(--accent); color: #1a1508; border: none; padding: 12px 22px;
+    font-family: var(--mono); font-size: 13px; letter-spacing: 0.04em; text-transform: uppercase;
+    cursor: pointer; border-radius: 2px;
+  }
+  #search-bar button:hover { background: var(--depth0); }
+  #search-bar button:disabled { background: var(--accent-dim); cursor: wait; }
+  #fit-btn { background: transparent !important; border: 1px solid var(--rule) !important; color: var(--ink-dim) !important; }
+  #fit-btn:hover { border-color: var(--accent) !important; color: var(--ink) !important; }
 
-        body {
-            margin: 0;
-            background: var(--bg);
-            color: var(--ink);
-            font-family: var(--serif);
-            height: 100vh;
-            overflow: hidden;
-        }
+  #status { position: absolute; bottom: 20px; left: 20px; font-family: var(--mono); font-size: 12px; color: var(--ink-dim); z-index: 10; }
+  #legend {
+    position: absolute; bottom: 20px; right: 20px; font-family: var(--mono); font-size: 11px;
+    color: var(--ink-dim); text-align: right; z-index: 10; line-height: 1.8;
+  }
+  .legend-dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-left: 8px; }
 
-        #app {
-            display: grid;
-            grid-template-columns: 1fr 360px;
-            height: 100vh;
-        }
+  #panel { background: var(--panel); display: flex; flex-direction: column; height: 100vh; }
+  #detail-section { padding: 28px; overflow-y: auto; flex: 1 1 55%; border-bottom: 1px solid var(--rule); }
+  #panel h1 {
+    font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent);
+    font-family: var(--mono); margin: 0 0 20px 0;
+  }
+  #detail-title { font-size: 19px; line-height: 1.35; margin: 0 0 12px 0; }
+  #detail-meta { font-family: var(--mono); font-size: 12px; color: var(--ink-dim); margin-bottom: 16px; }
+  #detail-meta span { color: var(--accent); }
+  #detail-summary { font-size: 14.5px; line-height: 1.6; }
+  .summary-line { margin-bottom: 10px; }
+  .summary-label { font-family: var(--mono); font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--accent); display: block; margin-bottom: 2px; }
+  #detail-abstract-label { margin-top: 14px; font-family: var(--mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-dim); border-top: 1px solid var(--rule); padding-top: 12px; }
+  #detail-abstract { font-size: 13.5px; line-height: 1.6; color: var(--ink-dim); margin-top: 6px; }
+  #detail-empty { color: var(--ink-dim); font-size: 14px; font-style: italic; }
+  .badge {
+    display: inline-block; font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.05em;
+    text-transform: uppercase; background: var(--accent-dim); color: var(--depth0);
+    padding: 3px 8px; border-radius: 2px; margin-bottom: 14px;
+  }
 
-        #graph-pane {
-            position: relative;
-            border-right: 1px solid var(--rule);
-        }
-
-        #cy {
-            width: 100%;
-            height: 100%;
-            background: radial-gradient(circle at 20% 20%, #1c1a16 0%, var(--bg) 60%);
-        }
-
-        #search-bar {
-            position: absolute;
-            top: 20px;
-            left: 20px;
-            right: 20px;
-            display: flex;
-            gap: 10px;
-            z-index: 10;
-        }
-
-        #search-bar input {
-            flex: 1;
-            background: var(--panel);
-            border: 1px solid var(--rule);
-            color: var(--ink);
-            padding: 12px 16px;
-            font-family: var(--serif);
-            font-size: 15px;
-            border-radius: 2px;
-        }
-
-        #search-bar input::placeholder {
-            color: var(--ink-dim);
-        }
-
-        #search-bar input:focus {
-            outline: none;
-            border-color: var(--accent);
-        }
-
-        #search-bar button {
-            background: var(--accent);
-            color: #1a1508;
-            border: none;
-            padding: 12px 22px;
-            font-family: var(--mono);
-            font-size: 13px;
-            letter-spacing: 0.04em;
-            text-transform: uppercase;
-            cursor: pointer;
-            border-radius: 2px;
-        }
-
-        #search-bar button:hover {
-            background: var(--depth0);
-        }
-
-        #search-bar button:disabled {
-            background: var(--accent-dim);
-            cursor: wait;
-        }
-
-        #fit-btn {
-            background: transparent !important;
-            border: 1px solid var(--rule) !important;
-            color: var(--ink-dim) !important;
-        }
-
-        #fit-btn:hover {
-            border-color: var(--accent) !important;
-            color: var(--ink) !important;
-        }
-
-        #status {
-            position: absolute;
-            bottom: 20px;
-            left: 20px;
-            font-family: var(--mono);
-            font-size: 12px;
-            color: var(--ink-dim);
-            z-index: 10;
-        }
-
-        #legend {
-            position: absolute;
-            bottom: 20px;
-            right: 20px;
-            font-family: var(--mono);
-            font-size: 11px;
-            color: var(--ink-dim);
-            text-align: right;
-            z-index: 10;
-            line-height: 1.8;
-        }
-
-        .legend-dot {
-            display: inline-block;
-            width: 9px;
-            height: 9px;
-            border-radius: 50%;
-            margin-left: 8px;
-        }
-
-        #panel {
-            background: var(--panel);
-            padding: 28px;
-            overflow-y: auto;
-        }
-
-        #panel h1 {
-            font-size: 15px;
-            letter-spacing: 0.08em;
-            text-transform: uppercase;
-            color: var(--accent);
-            font-family: var(--mono);
-            margin: 0 0 24px 0;
-            border-bottom: 1px solid var(--rule);
-            padding-bottom: 14px;
-        }
-
-        #detail-title {
-            font-size: 20px;
-            line-height: 1.35;
-            margin: 0 0 12px 0;
-        }
-
-        #detail-meta {
-            font-family: var(--mono);
-            font-size: 12px;
-            color: var(--ink-dim);
-            margin-bottom: 18px;
-        }
-
-        #detail-meta span {
-            color: var(--accent);
-        }
-
-        #detail-abstract {
-            font-size: 14.5px;
-            line-height: 1.65;
-            color: var(--ink);
-        }
-
-        #detail-empty {
-            color: var(--ink-dim);
-            font-size: 14px;
-            font-style: italic;
-        }
-
-        .badge {
-            display: inline-block;
-            font-family: var(--mono);
-            font-size: 10.5px;
-            letter-spacing: 0.05em;
-            text-transform: uppercase;
-            background: var(--accent-dim);
-            color: var(--depth0);
-            padding: 3px 8px;
-            border-radius: 2px;
-            margin-bottom: 14px;
-        }
-    </style>
+  #chat-section { flex: 1 1 45%; display: flex; flex-direction: column; padding: 20px 28px; overflow: hidden; }
+  #chat-log { flex: 1; overflow-y: auto; margin-bottom: 12px; font-size: 13.5px; line-height: 1.6; }
+  .chat-msg { margin-bottom: 14px; }
+  .chat-role { font-family: var(--mono); font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-dim); margin-bottom: 3px; }
+  .chat-msg.user .chat-role { color: var(--accent); }
+  .chat-input-row { display: flex; gap: 8px; }
+  #chat-input {
+    flex: 1; background: var(--bg); border: 1px solid var(--rule); color: var(--ink);
+    padding: 10px 12px; font-family: var(--serif); font-size: 13.5px; border-radius: 2px; resize: none;
+  }
+  #chat-input:focus { outline: none; border-color: var(--accent); }
+  #chat-send { background: var(--accent); color: #1a1508; border: none; padding: 10px 18px; font-family: var(--mono); font-size: 12px; text-transform: uppercase; cursor: pointer; border-radius: 2px; }
+  #chat-send:disabled { background: var(--accent-dim); cursor: wait; }
+  #chat-empty { color: var(--ink-dim); font-size: 13px; font-style: italic; }
+</style>
 </head>
-
 <body>
 
-    <div id="app">
-        <div id="graph-pane">
-            <div id="search-bar">
-                <input id="title-input" type="text" placeholder="Enter a paper title, e.g. Attention Is All You Need" />
-                <button id="crawl-btn">Build graph</button>
-                <button id="fit-btn" title="Reset zoom/pan">Fit view</button>
-            </div>
-            <div id="cy"></div>
-            <div id="status">Enter a title above to begin.</div>
-            <div id="legend">
-                Seed paper <span class="legend-dot" style="background:#e8c17a"></span><br />
-                Depth 1 <span class="legend-dot" style="background:#c98a3e"></span><br />
-                Depth 2 <span class="legend-dot" style="background:#8a6a4a"></span><br />
-                Depth 3+ <span class="legend-dot" style="background:#5a5044"></span>
-            </div>
-        </div>
-        <div id="panel">
-            <h1>Paper detail</h1>
-            <div id="detail-empty">Click a node to see its details here.</div>
-            <div id="detail-content" style="display:none">
-                <div class="badge" id="detail-badge"></div>
-                <div id="detail-title"></div>
-                <div id="detail-meta"></div>
-                <div id="detail-abstract"></div>
-            </div>
-        </div>
+<div id="app">
+  <div id="graph-pane">
+    <div id="search-bar">
+      <input id="title-input" type="text" placeholder="Enter a paper title, e.g. Attention Is All You Need" />
+      <button id="crawl-btn">Build graph</button>
+      <button id="fit-btn" title="Reset zoom/pan">Fit view</button>
     </div>
+    <div id="cy"></div>
+    <div id="status">Enter a title above to begin.</div>
+    <div id="legend">
+      Seed paper <span class="legend-dot" style="background:#e8c17a"></span><br/>
+      Depth 1 <span class="legend-dot" style="background:#c98a3e"></span><br/>
+      Depth 2 <span class="legend-dot" style="background:#8a6a4a"></span><br/>
+      Depth 3+ <span class="legend-dot" style="background:#5a5044"></span>
+    </div>
+  </div>
+  <div id="panel">
+    <div id="detail-section">
+      <h1>Paper detail</h1>
+      <div id="detail-empty">Click a node to see its details here.</div>
+      <div id="detail-content" style="display:none">
+        <div class="badge" id="detail-badge"></div>
+        <div id="detail-title"></div>
+        <div id="detail-meta"></div>
+        <div id="detail-summary"></div>
+        <div id="detail-abstract-label">Abstract</div>
+        <div id="detail-abstract"></div>
+      </div>
+    </div>
+    <div id="chat-section">
+      <h1>Ask about this graph</h1>
+      <div id="chat-log"><div id="chat-empty">Build a graph, then ask things like "how does the seed paper's method relate to its most-cited ancestor?"</div></div>
+      <div class="chat-input-row">
+        <textarea id="chat-input" rows="2" placeholder="Ask a question about this graph..."></textarea>
+        <button id="chat-send">Ask</button>
+      </div>
+    </div>
+  </div>
+</div>
 
-    <script>
-        const API_BASE = "http://localhost:8000";
+<script>
+const API_BASE = "http://localhost:8000";
+let currentGraphId = null;
 
-        const DEPTH_COLORS = ["#e8c17a", "#c98a3e", "#8a6a4a", "#5a5044"];
-        const depthColor = (d) => DEPTH_COLORS[Math.min(d, 3)];
+const DEPTH_COLORS = ["#e8c17a", "#c98a3e", "#8a6a4a", "#5a5044"];
+const depthColor = (d) => DEPTH_COLORS[Math.min(d, 3)];
 
-        let cy = cytoscape({
-            container: document.getElementById('cy'),
-            minZoom: 0.1,
-            maxZoom: 3,
-            wheelSensitivity: 0.25,
-            userZoomingEnabled: true,
-            userPanningEnabled: true,
-            boxSelectionEnabled: false,
-            style: [
-                {
-                    selector: 'node',
-                    style: {
-                        'background-color': ele => depthColor(ele.data('depth')),
-                        'label': 'data(shortTitle)',
-                        'color': '#ece6d9',
-                        'font-family': 'Georgia, serif',
-                        'font-size': 10,
-                        'text-valign': 'bottom',
-                        'text-margin-y': 6,
-                        'text-wrap': 'wrap',
-                        'text-max-width': '90px',
-                        'width': ele => 14 + Math.min(20, (ele.data('citation_count') || 0) / 3000),
-                        'height': ele => 14 + Math.min(20, (ele.data('citation_count') || 0) / 3000),
-                        'border-width': 0,
-                    }
-                },
-                {
-                    selector: 'edge',
-                    style: {
-                        'width': ele => ele.data('is_influential') ? 2 : 0.75,
-                        'line-color': ele => ele.data('is_influential') ? '#c98a3e' : '#3a352c',
-                        'target-arrow-color': ele => ele.data('is_influential') ? '#c98a3e' : '#3a352c',
-                        'target-arrow-shape': 'triangle',
-                        'arrow-scale': 0.7,
-                        'curve-style': 'bezier',
-                        'opacity': ele => ele.data('is_influential') ? 0.9 : 0.35,
-                    }
-                },
-                {
-                    selector: 'node:selected',
-                    style: {
-                        'border-width': 3,
-                        'border-color': '#ece6d9',
-                    }
-                }
-            ],
-            layout: { name: 'grid' }
-        });
+let cy = cytoscape({
+  container: document.getElementById('cy'),
+  minZoom: 0.1,
+  maxZoom: 3,
+  wheelSensitivity: 0.25,
+  userZoomingEnabled: true,
+  userPanningEnabled: true,
+  boxSelectionEnabled: false,
+  style: [
+    {
+      selector: 'node',
+      style: {
+        'background-color': ele => depthColor(ele.data('depth')),
+        'label': 'data(shortTitle)',
+        'color': '#ece6d9',
+        'font-family': 'Georgia, serif',
+        'font-size': 10,
+        'text-valign': 'bottom',
+        'text-margin-y': 6,
+        'text-wrap': 'wrap',
+        'text-max-width': '90px',
+        'width': ele => 14 + Math.min(20, (ele.data('citation_count') || 0) / 3000),
+        'height': ele => 14 + Math.min(20, (ele.data('citation_count') || 0) / 3000),
+        'border-width': 0,
+      }
+    },
+    {
+      selector: 'edge',
+      style: {
+        'width': ele => ele.data('is_influential') ? 2 : 0.75,
+        'line-color': ele => ele.data('is_influential') ? '#c98a3e' : '#3a352c',
+        'target-arrow-color': ele => ele.data('is_influential') ? '#c98a3e' : '#3a352c',
+        'target-arrow-shape': 'triangle',
+        'arrow-scale': 0.7,
+        'curve-style': 'bezier',
+        'opacity': ele => ele.data('is_influential') ? 0.9 : 0.35,
+      }
+    },
+    { selector: 'node:selected', style: { 'border-width': 3, 'border-color': '#ece6d9' } }
+  ],
+  layout: { name: 'grid' }
+});
 
-        cy.on('tap', 'node', (evt) => {
-            const d = evt.target.data();
-            showDetail(d);
-        });
+cy.on('tap', 'node', (evt) => showDetail(evt.target.data()));
 
-        function showDetail(d) {
-            document.getElementById('detail-empty').style.display = 'none';
-            const content = document.getElementById('detail-content');
-            content.style.display = 'block';
+function showDetail(d) {
+  document.getElementById('detail-empty').style.display = 'none';
+  const content = document.getElementById('detail-content');
+  content.style.display = 'block';
 
-            document.getElementById('detail-badge').textContent =
-                d.depth === 0 ? 'Seed paper' : `Depth ${d.depth}${d.is_influential_ref ? ' · influential citation' : ''}`;
-            document.getElementById('detail-title').textContent = d.title;
-            document.getElementById('detail-meta').innerHTML =
-                `<span>${d.year || '—'}</span> · ${d.venue || 'Venue unknown'} · ${d.citation_count} citations`;
-            document.getElementById('detail-abstract').textContent =
-                d.abstract || 'No abstract available for this paper.';
-        }
+  document.getElementById('detail-badge').textContent =
+    d.depth === 0 ? 'Seed paper' : `Depth ${d.depth}${d.is_influential_ref ? ' · influential citation' : ''}`;
+  document.getElementById('detail-title').textContent = d.title;
+  document.getElementById('detail-meta').innerHTML =
+    `<span>${d.year || '—'}</span> · ${d.venue || 'Venue unknown'} · ${d.citation_count} citations`;
 
-        async function buildGraph(title) {
-            const statusEl = document.getElementById('status');
-            const btn = document.getElementById('crawl-btn');
-            btn.disabled = true;
-            statusEl.textContent = `Crawling citation graph for "${title}"... this can take a minute.`;
+  const s = d.summary || {};
+  const summaryEl = document.getElementById('detail-summary');
+  if (s.one_liner) {
+    summaryEl.innerHTML = `
+      <div class="summary-line"><span class="summary-label">Problem</span>${s.problem || '—'}</div>
+      <div class="summary-line"><span class="summary-label">Method</span>${s.method || '—'}</div>
+      <div class="summary-line"><span class="summary-label">Key result</span>${s.key_result || '—'}</div>
+    `;
+  } else {
+    summaryEl.innerHTML = '';
+  }
+  document.getElementById('detail-abstract').textContent = d.abstract || 'No abstract available.';
+}
 
-            try {
-                const resp = await fetch(`${API_BASE}/api/crawl`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ title })
-                });
+async function buildGraph(title) {
+  const statusEl = document.getElementById('status');
+  const btn = document.getElementById('crawl-btn');
+  btn.disabled = true;
+  statusEl.textContent = `Crawling citation graph for "${title}"... this can take a minute.`;
 
-                if (!resp.ok) {
-                    const err = await resp.json();
-                    throw new Error(err.detail || `HTTP ${resp.status}`);
-                }
+  try {
+    const resp = await fetch(`${API_BASE}/api/crawl`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title })
+    });
+    if (!resp.ok) {
+      const err = await resp.json();
+      throw new Error(err.detail || `HTTP ${resp.status}`);
+    }
+    const data = await resp.json();
+    currentGraphId = data.graph_id;
 
-                const data = await resp.json();
+    cy.elements().remove();
 
-                cy.elements().remove();
+    const nodeEls = data.nodes.map(n => ({
+      data: {
+        id: n.id, title: n.title,
+        shortTitle: n.title.length > 40 ? n.title.slice(0, 40) + '…' : n.title,
+        year: n.year, venue: n.venue, abstract: n.abstract, summary: n.summary,
+        citation_count: n.citation_count, depth: n.depth, is_influential_ref: n.is_influential_ref,
+      }
+    }));
+    const edgeEls = data.edges.map(e => ({
+      data: { id: `${e.source}-${e.target}`, source: e.source, target: e.target, is_influential: e.is_influential }
+    }));
 
-                const nodeEls = data.nodes.map(n => ({
-                    data: {
-                        id: n.id,
-                        title: n.title,
-                        shortTitle: n.title.length > 40 ? n.title.slice(0, 40) + '…' : n.title,
-                        year: n.year,
-                        venue: n.venue,
-                        abstract: n.abstract,
-                        citation_count: n.citation_count,
-                        depth: n.depth,
-                        is_influential_ref: n.is_influential_ref,
-                    }
-                }));
+    cy.add([...nodeEls, ...edgeEls]);
 
-                const edgeEls = data.edges.map(e => ({
-                    data: {
-                        id: `${e.source}-${e.target}`,
-                        source: e.source,
-                        target: e.target,
-                        is_influential: e.is_influential,
-                    }
-                }));
+    const layout = cy.layout({
+      name: 'concentric',
+      concentric: (node) => -node.data('depth'),
+      levelWidth: () => 1,
+      minNodeSpacing: 45,
+      animate: true,
+      equidistant: true,
+    });
+    layout.run();
+    layout.on('layoutstop', () => cy.fit(undefined, 40));
 
-                cy.add([...nodeEls, ...edgeEls]);
+    statusEl.textContent = `${data.nodes.length} papers, ${data.edges.length} citation links.`;
 
-                const layout = cy.layout({
-                    name: 'concentric',
-                    concentric: (node) => -node.data('depth'),
-                    levelWidth: () => 1,
-                    minNodeSpacing: 45,
-                    animate: true,
-                    equidistant: true,
-                });
-                layout.run();
-                layout.on('layoutstop', () => cy.fit(undefined, 40));
+    const seed = data.nodes.find(n => n.depth === 0);
+    if (seed) showDetail(cy.getElementById(seed.id).data());
 
-                statusEl.textContent = `${data.nodes.length} papers, ${data.edges.length} citation links.`;
+    document.getElementById('chat-empty').textContent = 'Graph ready — ask a question below.';
 
-                const seed = data.nodes.find(n => n.depth === 0);
-                if (seed) showDetail(cy.getElementById(seed.id).data());
+  } catch (e) {
+    statusEl.textContent = `Error: ${e.message}`;
+  } finally {
+    btn.disabled = false;
+  }
+}
 
-            } catch (e) {
-                statusEl.textContent = `Error: ${e.message}`;
-            } finally {
-                btn.disabled = false;
-            }
-        }
+function appendChatMessage(role, text) {
+  const log = document.getElementById('chat-log');
+  const empty = document.getElementById('chat-empty');
+  if (empty) empty.remove();
+  const div = document.createElement('div');
+  div.className = `chat-msg ${role}`;
+  div.innerHTML = `<div class="chat-role">${role === 'user' ? 'You' : 'Agent'}</div><div>${text}</div>`;
+  log.appendChild(div);
+  log.scrollTop = log.scrollHeight;
+}
 
-        document.getElementById('crawl-btn').addEventListener('click', () => {
-            const title = document.getElementById('title-input').value.trim();
-            if (title) buildGraph(title);
-        });
+async function sendChat() {
+  const input = document.getElementById('chat-input');
+  const question = input.value.trim();
+  if (!question) return;
 
-        document.getElementById('title-input').addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') document.getElementById('crawl-btn').click();
-        });
+  if (!currentGraphId) {
+    appendChatMessage('agent', 'Build a graph first, then ask questions about it.');
+    return;
+  }
 
-        document.getElementById('fit-btn').addEventListener('click', () => {
-            cy.fit(undefined, 40);
-        });
-    </script>
+  appendChatMessage('user', question);
+  input.value = '';
+  const btn = document.getElementById('chat-send');
+  btn.disabled = true;
+  appendChatMessage('agent', 'Thinking...');
+
+  try {
+    const resp = await fetch(`${API_BASE}/api/chat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ graph_id: currentGraphId, question })
+    });
+    const data = await resp.json();
+    document.querySelectorAll('.chat-msg.agent').forEach(el => {
+      if (el.textContent.includes('Thinking...')) el.remove();
+    });
+    if (!resp.ok) throw new Error(data.detail || `HTTP ${resp.status}`);
+    appendChatMessage('agent', data.answer);
+  } catch (e) {
+    document.querySelectorAll('.chat-msg.agent').forEach(el => {
+      if (el.textContent.includes('Thinking...')) el.remove();
+    });
+    appendChatMessage('agent', `Error: ${e.message}`);
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+document.getElementById('crawl-btn').addEventListener('click', () => {
+  const title = document.getElementById('title-input').value.trim();
+  if (title) buildGraph(title);
+});
+document.getElementById('title-input').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') document.getElementById('crawl-btn').click();
+});
+document.getElementById('fit-btn').addEventListener('click', () => cy.fit(undefined, 40));
+document.getElementById('chat-send').addEventListener('click', sendChat);
+document.getElementById('chat-input').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChat(); }
+});
+</script>
 </body>
-
 </html>

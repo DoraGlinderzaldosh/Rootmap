@@ -1,0 +1,1 @@
+{"problem": "Deeper neural networks are harder to train", "method": "Residual learning framework to ease training", "key_result": "Residual networks can gain accuracy from increased depth", "one_liner": "Residual learning enables deeper neural networks to achieve higher accuracy in image recognition tasks."}

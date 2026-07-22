@@ -1,6 +1,9 @@
-from dataclasses import dataclass, field
- 
- 
+"""
+models.py — shared data structures for the citation graph project.
+"""
+from dataclasses import dataclass
+
+
 @dataclass
 class Paper:
     paper_id: str
@@ -10,10 +13,10 @@ class Paper:
     venue: str | None
     citation_count: int
     influential_citation_count: int
-    depth: int  
-    is_influential_ref: bool = False  
-    summary: str | None = None
- 
+    depth: int
+    is_influential_ref: bool = False
+    summary: dict | None = None
+
     @classmethod
     def from_s2_dict(cls, d: dict, depth: int, is_influential_ref: bool = False) -> "Paper":
         return cls(

@@ -1,0 +1,7 @@
+ran it on 30 papers, and found 60% of edges were unrelated-citation, which forced me to add a confidence threshold because the LLM was over-labeling everything as improves-on.
+One LLM call per edge is not a hard systems problem. It's a well-scoped prompt engineering task. If they ask "what was technically hard here," your honest answer right now would be "getting the prompt to not hallucinate" — which is a real answer, but it's thin compared to something with actual systems tradeoffs (latency, concurrency, data structure choices, correctness under scale).
+No evaluation. If you can't say "I validated this against N hand-labeled edges and got X% agreement," you have no way to defend the project's correctness when pushed, and Google interviewers will push exactly there — "how do you know it works?"
+Actually build and run it, don't just design it.
+Hand-label a validation set and report real accuracy/failure modes — this gives you something concrete to defend.
+Have at least one nontrivial engineering decision beyond prompting — e.g., how you handle rate limits/cost when classifying every edge in a large graph, how you cache/dedupe repeated abstract pairs, how you deal with graphs too large to fully process (sampling strategy, incremental processing). That's the difference between "I called an API in a loop" and "I built a system."
+Be able to state, unprompted, what's wrong with it — the abstract-only limitation, the noise-edge majority class problem you already identified. Interviewers respect self-critique more than a polished pitch.
